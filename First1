@@ -1,48 +1,24 @@
 import streamlit as st
 import pandas as pd
 
-# 제목
-st.title("2025년 5월 연령별 인구 현황 분석")
+st.set_page_config(page_title="2025년 6월 교통카드 통계 분석", layout="wide")
+st.title("🚌 2025년 6월 교통카드 통계 분석")
 
-# 데이터 불러오기
-uploaded_file = st.file_uploader("CSV 파일 업로드 (EUC-KR 인코딩)", type="csv")
+# 파일 불러오기
+try:
+    df = pd.read_excel("data/2025년_06월_교통카드_통계자료.xls", header=2)  # 시트 구조에 맞게 수정 가능
+except Exception as e:
+    st.error(f"파일을 불러오는 데 문제가 발생했습니다: {e}")
+    st.stop()
 
-if uploaded_file is not None:
-    # 데이터 읽기
-    df = pd.read_csv(uploaded_file, encoding="EUC-KR")
+# 데이터 확인
+st.subheader("📋 원본 데이터 (미리보기)")
+st.dataframe(df.head())
 
-    # 열 이름 전처리
-    original_columns = df.columns.tolist()
-    age_columns = [col for col in original_columns if col.startswith("2025년05월_계_")]
-    df = df.rename(columns={col: col.replace("2025년05월_계_", "") for col in age_columns})
-
-    # '총인구수' 컬럼이 존재하면 이름 유지, 없다면 추정
-    if '총인구수' not in df.columns:
-        df['총인구수'] = df[[col for col in df.columns if col.isdigit()]].sum(axis=1)
-
-    # 총인구수 기준 상위 5개 행정구역 추출
-    df_top5 = df.nlargest(5, '총인구수')
-
-    # 연령 컬럼만 선택 (숫자인 컬럼만)
-    age_cols = [col for col in df.columns if col.isdigit()]
-
-    st.subheader("📊 원본 데이터 (일부 미리보기)")
-    st.dataframe(df.head())
-
-    st.subheader("👑 총인구수 기준 상위 5개 지역")
-    st.dataframe(df_top5[['행정구역', '총인구수']])
-
-    st.subheader("📈 연령별 인구 선 그래프 (상위 5개 지역)")
-
-    # 그래프 시각화 (각 행정구역별로 차트 그리기)
-    for idx, row in df_top5.iterrows():
-        st.markdown(f"#### 📍 {row['행정구역']}")
-        age_data = pd.DataFrame({
-            "연령": list(map(int, age_cols)),
-            "인구수": row[age_cols].astype(int).values
-        }).set_index("연령")
-
-        st.line_chart(age_data)
-
+# 예시: 노선별 이용자 수 분석
+if '노선명' in df.columns and '합계' in df.columns:
+    df_top = df.sort_values('합계', ascending=False).head(10)
+    st.subheader("🚍 이용객 수 TOP 10 노선")
+    st.bar_chart(df_top.set_index("노선명")['합계'])
 else:
-    st.info("왼쪽 사이드바 또는 위에서 CSV 파일을 업로드해주세요.")
+    st.warning("노선명 또는 합계 열을 찾을 수 없습니다. 데이터 구조를 확인해주세요.")
